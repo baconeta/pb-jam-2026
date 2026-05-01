@@ -79,7 +79,7 @@ namespace Audio
 
         public void StopAllAudio()
         {
-            CustomAudioSource[] allAudio = FindObjectsByType<CustomAudioSource>(FindObjectsSortMode.None);
+            CustomAudioSource[] allAudio = FindObjectsByType<CustomAudioSource>(FindObjectsInactive.Exclude);
             foreach (CustomAudioSource sound in allAudio)
             {
                 sound.StopAudio();
