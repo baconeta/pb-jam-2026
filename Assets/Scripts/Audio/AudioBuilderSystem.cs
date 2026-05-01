@@ -27,7 +27,7 @@ namespace Audio
         {
             _audioManager = FindAnyObjectByType<AudioManager>();
             _builtClips = new List<AudioClip>(new AudioClip[maxStageSpotsAudioCache]);
-            _customAudioSource = _audioManager.Setup(musicMixerGroup, false);
+            _customAudioSource = _audioManager.Setup(musicMixerGroup);
         }
         
         public void UpdateClipAtIndex(AudioClip clip, int index)
