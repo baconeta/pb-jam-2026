@@ -1633,9 +1633,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.CameraController
   _followTarget: {fileID: 147915723}
   _followSpeed: 6
-  _zoomedInSize: 4
+  _zoomedInSize: 2
   _zoomedOutSize: 10
-  _zoomSpeed: 3
+  _zoomSpeed: 4
   _boardCentrePosition: {x: -6, y: 0, z: 0}
 --- !u!1001 &662189813
 PrefabInstance:
