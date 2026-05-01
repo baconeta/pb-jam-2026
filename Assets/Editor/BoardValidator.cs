@@ -37,7 +37,7 @@ public static class BoardValidator
         {
             boardManager.RefreshTileList();
 
-            BoardTile[] allTiles = Object.FindObjectsByType<BoardTile>(FindObjectsSortMode.None);
+            BoardTile[] allTiles = Object.FindObjectsByType<BoardTile>();
 
             if (allTiles.Length == 0)
             {
