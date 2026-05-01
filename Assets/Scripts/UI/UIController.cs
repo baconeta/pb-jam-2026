@@ -16,13 +16,24 @@ namespace UI
     /// </summary>
     public class UIController : MonoBehaviour
     {
-        [Header("HUD")]
-        [Tooltip("Displays the player's current score.")]
+        [Header("HUD – Score")]
+        [Tooltip("Displays banked (safe) score. Leave empty to skip.")]
+        [SerializeField] private TMP_Text _bankedScoreText;
+
+        [Tooltip("Displays run (at-risk) score. Leave empty to skip.")]
+        [SerializeField] private TMP_Text _runScoreText;
+
+        [Tooltip("Displays total score (banked + run). Leave empty to skip.")]
         [SerializeField] private TMP_Text _scoreText;
 
-        [Tooltip("Displays the current risk level.")]
+        [Header("HUD – Risk")]
+        [Tooltip("Displays current risk level number.")]
         [SerializeField] private TMP_Text _riskText;
 
+        [Tooltip("Displays current score multiplier (e.g. '2.0×'). Leave empty to skip.")]
+        [SerializeField] private TMP_Text _multiplierText;
+
+        [Header("HUD – Dice")]
         [Tooltip("Shows the dice roll result (e.g. '5' or '3 + 4 = 7').")]
         [SerializeField] private TMP_Text _diceResultText;
 
@@ -41,6 +52,14 @@ namespace UI
         [Tooltip("Panel shown when the player hits a Negative tile.")]
         [SerializeField] private GameObject _gameOverPanel;
 
+        [Header("Standalone High Score Panel (optional)")]
+        [Tooltip("Optional separate panel just for viewing high scores (e.g. a main-menu leaderboard). " +
+                 "Leave empty to skip. Wire a 'View Scores' button to BoardGameManager.ToggleHighScorePanel().")]
+        [SerializeField] private GameObject _highScoreStandalonePanel;
+
+        [Tooltip("Text inside the standalone panel (can be the same TMP_Text as _highScoreText if you prefer).")]
+        [SerializeField] private TMP_Text _highScoreStandaloneText;
+
         [Tooltip("Displays the final score inside the game over panel.")]
         [SerializeField] private TMP_Text _gameOverScoreText;
 
@@ -57,18 +76,60 @@ namespace UI
             // Start with panels hidden; the GameManager controls their visibility.
             SetCheckpointPanelVisible(false);
             SetGameOverPanelVisible(false);
+            if (_highScoreStandalonePanel != null) _highScoreStandalonePanel.SetActive(false);
         }
 
         // ── HUD updates ───────────────────────────────────────────────────────────
 
-        public void UpdateScore(int score)
+        /// <summary>
+        /// Updates the split score display: banked (safe), run (at-risk), and total.
+        /// Assign the three TMP_Text refs in the Inspector to see the breakdown.
+        /// Any refs left unassigned are silently skipped.
+        /// </summary>
+        public void UpdateScoreUI(int banked, int run)
         {
-            if (_scoreText != null) _scoreText.text = $"Score: {score}";
+            if (_bankedScoreText != null) _bankedScoreText.text = $"Banked: {banked}";
+            if (_runScoreText    != null) _runScoreText.text    = $"At Risk: {run}";
+            if (_scoreText       != null) _scoreText.text       = $"Total: {banked + run}";
         }
 
+        /// <summary>
+        /// Updates the risk level and multiplier display.
+        /// Assign _riskText and/or _multiplierText in the Inspector.
+        /// </summary>
+        public void UpdateRiskUI(int riskLevel, float multiplier)
+        {
+            if (_riskText      != null) _riskText.text      = $"Risk: {riskLevel}";
+            if (_multiplierText != null) _multiplierText.text = $"{multiplier:F1}×";
+        }
+
+        // ── Individual setters (kept for backward compat or targeted use) ─────────
+
+        /// <summary>Updates total score text only. Prefer UpdateScoreUI() for the split display.</summary>
+        public void UpdateScore(int score)
+        {
+            if (_scoreText != null) _scoreText.text = $"Total: {score}";
+        }
+
+        /// <summary>Updates risk level text only. Prefer UpdateRiskUI() to also show multiplier.</summary>
         public void UpdateRiskLevel(int riskLevel)
         {
             if (_riskText != null) _riskText.text = $"Risk: {riskLevel}";
+        }
+
+        public void UpdateMultiplier(float multiplier)
+        {
+            if (_multiplierText != null) _multiplierText.text = $"{multiplier:F1}×";
+        }
+
+        public void UpdateBankedScore(int banked)
+        {
+            if (_bankedScoreText != null) _bankedScoreText.text = $"Banked: {banked}";
+        }
+
+        public void UpdateRunScore(int run)
+        {
+            if (_runScoreText != null) _runScoreText.text = $"At Risk: {run}";
         }
 
         public void UpdateDiceResult(string result)
@@ -99,11 +160,16 @@ namespace UI
             if (_gameOverPanel != null) _gameOverPanel.SetActive(visible);
         }
 
-        /// <summary>Shows the game over panel and displays the final score.</summary>
-        public void ShowGameOver(int finalScore)
+        /// <summary>
+        /// Shows the game over panel with a banked/run score breakdown.
+        /// Total = banked + run.
+        /// </summary>
+        public void ShowGameOver(int bankedScore, int runScore)
         {
             SetGameOverPanelVisible(true);
-            if (_gameOverScoreText != null) _gameOverScoreText.text = $"Final Score: {finalScore}";
+            int total = bankedScore + runScore;
+            if (_gameOverScoreText != null)
+                _gameOverScoreText.text = $"Final Score: {total}\nBanked: {bankedScore}  +  At-Risk: {runScore}";
         }
 
         // ── Name input ────────────────────────────────────────────────────────────
@@ -121,23 +187,40 @@ namespace UI
 
         // ── High scores ───────────────────────────────────────────────────────────
 
-        /// <summary>Builds and displays a formatted high score table from the provided entries.</summary>
+        /// <summary>
+        /// Builds and displays a formatted high score table from the provided entries.
+        /// Writes to _highScoreText (game over panel) and also to _highScoreStandaloneText
+        /// if it is assigned, keeping both in sync automatically.
+        /// </summary>
         public void UpdateHighScoreDisplay(List<HighScoreEntry> scores)
         {
-            if (_highScoreText == null) return;
+            string text = BuildHighScoreText(scores);
+            if (_highScoreText         != null) _highScoreText.text         = text;
+            if (_highScoreStandaloneText != null) _highScoreStandaloneText.text = text;
+        }
 
+        /// <summary>
+        /// Toggles the standalone high score panel (if assigned).
+        /// BoardGameManager.ToggleHighScorePanel() calls this after refreshing the scores.
+        /// </summary>
+        public void ToggleStandaloneHighScorePanel()
+        {
+            if (_highScoreStandalonePanel == null) return;
+            bool next = !_highScoreStandalonePanel.activeSelf;
+            _highScoreStandalonePanel.SetActive(next);
+            Debug.Log($"[UIController] Standalone high score panel {(next ? "shown" : "hidden")}.");
+        }
+
+        private static string BuildHighScoreText(List<HighScoreEntry> scores)
+        {
             if (scores == null || scores.Count == 0)
-            {
-                _highScoreText.text = "No scores yet!";
-                return;
-            }
+                return "No scores yet!";
 
             System.Text.StringBuilder sb = new();
             sb.AppendLine("── HIGH SCORES ──");
             for (int i = 0; i < scores.Count; i++)
                 sb.AppendLine($"{i + 1}.  {scores[i].playerName,-12}  {scores[i].score}");
-
-            _highScoreText.text = sb.ToString();
+            return sb.ToString();
         }
     }
 }

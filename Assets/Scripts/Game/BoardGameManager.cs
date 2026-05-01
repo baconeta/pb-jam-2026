@@ -137,15 +137,29 @@ namespace Game
         public void SubmitHighScore()
         {
             if (_ui == null) return;
-            string name = _ui.GetEnteredName();
-            HighScoreManager.SaveScore(name, _scoreManager.Score);
+            string name  = _ui.GetEnteredName();
+            int    score = _scoreManager.GetTotalScore();
+            Debug.Log($"[BoardGameManager] Submitting high score – name: '{name}', score: {score} " +
+                      $"(banked {_scoreManager.BankedScore} + run {_scoreManager.RunScore}).");
+            HighScoreManager.SaveScore(name, score);
             RefreshHighScoreUI();
+        }
+
+        /// <summary>
+        /// Shows or hides the standalone high score panel (if one is assigned in UIController).
+        /// Wire this to a "View Scores" button anywhere in your UI.
+        /// </summary>
+        public void ToggleHighScorePanel()
+        {
+            RefreshHighScoreUI();
+            _ui?.ToggleStandaloneHighScorePanel();
         }
 
         // ── Game flow ─────────────────────────────────────────────────────────────
 
         private void StartGame()
         {
+            Debug.Log("[BoardGameManager] Game starting.");
             _scoreManager.ResetSession();
             _player.PlaceAtCheckpoint();
             _boardManager.ShuffleContents(_scoreManager.RiskLevel);
@@ -158,6 +172,7 @@ namespace Game
                 _ui.SetCheckpointPanelVisible(false);
                 _ui.SetGameOverPanelVisible(false);
                 _ui.UpdateDiceResult(string.Empty);
+                RefreshHighScoreUI(); // Show existing scores on the game over panel from the start.
             }
 
             SetState(GameState.WaitingForRoll);
@@ -185,6 +200,7 @@ namespace Game
                 displayText = $"Rolled: {r1} + {r2} = {total}";
             }
 
+            Debug.Log($"[BoardGameManager] Dice roll – {diceCount} die/dice, result: {displayText}, moving {total} step(s).");
             if (_ui != null) _ui.UpdateDiceResult(displayText);
 
             // Brief pause so the player can read the roll result.
@@ -210,6 +226,9 @@ namespace Game
 
         private IEnumerator HandleCheckpointReached()
         {
+            Debug.Log($"[BoardGameManager] Checkpoint reached. Banked: {_scoreManager.BankedScore}, " +
+                      $"at-risk run: {_scoreManager.RunScore}, risk level: {_scoreManager.RiskLevel}, " +
+                      $"multiplier: {_scoreManager.CurrentMultiplier:F2}x.");
             SetState(GameState.AtCheckpoint);
 
             if (_camera != null) _camera.SetCheckpointMode();
@@ -226,6 +245,7 @@ namespace Game
 
         private void ResolveCheckpointDecision()
         {
+            Debug.Log($"[BoardGameManager] Checkpoint decision resolved. Risk now: {_scoreManager.RiskLevel}, multiplier: {_scoreManager.CurrentMultiplier:F2}x.");
             if (_ui != null) _ui.SetCheckpointPanelVisible(false);
 
             // Reshuffle again now that the risk level has changed.
@@ -243,6 +263,8 @@ namespace Game
             BoardTile tile = _player.CurrentTile;
             if (tile != null)
             {
+                Debug.Log($"[BoardGameManager] Landed on tile index {tile.Index} – content: {tile.CurrentContent}.");
+
                 switch (tile.CurrentContent)
                 {
                     case TileContent.Positive:
@@ -250,8 +272,12 @@ namespace Game
 
                         // Optional bonus for choosing to roll two dice.
                         // Controlled by the _twoDiceBonus flag in the Inspector (default: off).
+                        // AddFlatBonus() applies the points to the actual score – not just the display.
                         if (_twoDiceBonus && _lastRollWasTwoDice)
+                        {
+                            _scoreManager.AddFlatBonus(_twoDiceBonusAmount);
                             awarded += _twoDiceBonusAmount;
+                        }
 
                         if (_ui != null) _ui.UpdateDiceResult($"+{awarded}!");
                         RefreshHUD();
@@ -259,6 +285,7 @@ namespace Game
                         break;
 
                     case TileContent.Negative:
+                        Debug.Log("[BoardGameManager] Negative tile hit!");
                         // Currently triggers game over.
                         // TO CHANGE: replace TriggerGameOver() here with e.g. ReturnToCheckpoint().
                         // ScoreManager and BoardManager don't need to change – only this block.
@@ -267,7 +294,8 @@ namespace Game
 
                     case TileContent.Empty:
                     default:
-                        break; // Nothing happens on empty tiles.
+                        // Nothing happens on empty tiles.
+                        break;
                 }
             }
 
@@ -276,11 +304,14 @@ namespace Game
 
         private IEnumerator TriggerGameOver()
         {
+            Debug.Log($"[BoardGameManager] Game over. Banked: {_scoreManager.BankedScore}, " +
+                      $"at-risk: {_scoreManager.RunScore}, total: {_scoreManager.GetTotalScore()}, " +
+                      $"risk level was: {_scoreManager.RiskLevel}.");
             SetState(GameState.GameOver);
 
             if (_ui != null)
             {
-                _ui.ShowGameOver(_scoreManager.Score);
+                _ui.ShowGameOver(_scoreManager.BankedScore, _scoreManager.RunScore);
                 RefreshHighScoreUI();
             }
 
@@ -291,6 +322,7 @@ namespace Game
 
         private void SetState(GameState newState)
         {
+            Debug.Log($"[BoardGameManager] State: {CurrentState} → {newState}.");
             CurrentState = newState;
             // Roll buttons are interactable only when waiting for player input.
             if (_ui != null)
@@ -300,8 +332,8 @@ namespace Game
         private void RefreshHUD()
         {
             if (_ui == null) return;
-            _ui.UpdateScore(_scoreManager.Score);
-            _ui.UpdateRiskLevel(_scoreManager.RiskLevel);
+            _ui.UpdateScoreUI(_scoreManager.BankedScore, _scoreManager.RunScore);
+            _ui.UpdateRiskUI(_scoreManager.RiskLevel, _scoreManager.CurrentMultiplier);
         }
 
         private void RefreshHighScoreUI()

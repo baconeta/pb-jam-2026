@@ -56,8 +56,38 @@ Assets/
 
 - Board tiles are placed manually in the scene. No procedural generation.
 - `BoardGameManager` is the single coordinator. UI buttons call its public methods directly.
-- Risk level is stored in `ScoreManager`. Higher risk = more positive AND negative tiles + higher
-  score multiplier.
 - Negative tile behaviour is currently "game over" but is isolated in `BoardGameManager` so it can
   be changed to "return to checkpoint" without touching other systems.
 - High scores use PlayerPrefs + JsonUtility (top 5, local only).
+
+## Banked vs Run Score System
+
+`ScoreManager` tracks two score buckets:
+- **`bankedScore`** – safe score locked in when the player Takes the checkpoint.
+- **`runScore`** – at-risk score accumulated since the last checkpoint.
+- **`totalScore`** = `bankedScore + runScore`. This is what high scores record.
+
+On **Take Checkpoint**: `runScore` banks into `bankedScore`, risk resets to 0.
+On **Skip Checkpoint**: risk increases, `runScore` stays at risk (not banked).
+On **Game Over**: high score = `bankedScore + runScore` (all score counts, even the at-risk portion).
+
+## Multiplier System
+
+The score multiplier is driven by a **serialized `AnimationCurve`** on `ScoreManager`:
+- Field: `_riskMultiplierCurve` (Inspector: Risk Settings → Risk Multiplier Curve)
+- **X axis** = risk level (integer). **Y axis** = multiplier applied to base tile score.
+- Result is always clamped to >= 1.0.
+- Add/drag keyframes to adjust progression without any code changes.
+- Default keyframes: risk 0→1×, 1→2×, 2→4×, 3→7×, 4→10×.
+
+**Do not hardcode multiplier logic.** Always route through `ScoreManager.GetMultiplier(riskLevel)`.
+
+**Do not rename `_riskMultiplierCurve`** – renaming a serialized field silently resets it to defaults
+in any existing scene, losing the designer's tuning.
+
+## Serialization Safety
+
+- Never rename existing `[SerializeField]` fields – it loses Inspector-assigned values.
+- Adding new serialized fields is always safe (they start at their C# default).
+- Removing a serialized field is safe (Unity silently drops the value on next save).
+- Private non-serialized fields (runtime state) can be renamed freely.

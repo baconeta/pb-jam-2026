@@ -51,6 +51,10 @@ namespace Game
 
             PlayerPrefs.SetString(PrefKey, JsonUtility.ToJson(list));
             PlayerPrefs.Save();
+
+            // Find the rank of the entry we just saved (1-based).
+            int rank = list.entries.FindIndex(e => e.playerName == playerName && e.score == score) + 1;
+            Debug.Log($"[HighScoreManager] Saved score – name: '{playerName}', score: {score}, rank: #{rank} of {list.entries.Count}.");
         }
 
         /// <summary>
@@ -66,6 +70,7 @@ namespace Game
         {
             PlayerPrefs.DeleteKey(PrefKey);
             PlayerPrefs.Save();
+            Debug.Log("[HighScoreManager] All high scores cleared.");
         }
 
         private static HighScoreList Load()

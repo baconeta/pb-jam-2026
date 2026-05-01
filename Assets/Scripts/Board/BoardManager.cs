@@ -34,6 +34,13 @@ namespace Board
         [Tooltip("Extra negative tiles added for each risk level above 0.")]
         [SerializeField] private int _negativePerRiskLevel = 1;
 
+        [Header("Content Caps")]
+        [Tooltip("Hard maximum for positive tiles, regardless of risk level. Set to 0 to disable the cap.")]
+        [SerializeField] private int _maxPositiveTiles = 0;
+
+        [Tooltip("Hard maximum for negative tiles, regardless of risk level. Set to 0 to disable the cap.")]
+        [SerializeField] private int _maxNegativeTiles = 0;
+
         // Sorted, validated list built at runtime from _tiles.
         private readonly List<BoardTile> _sortedTiles = new();
 
@@ -113,11 +120,23 @@ namespace Board
             int positiveCount = _basePositiveCount + riskLevel * _positivePerRiskLevel;
             int negativeCount = _baseNegativeCount + riskLevel * _negativePerRiskLevel;
 
-            // Guard: never request more tiles than are available.
+            // Apply per-type hard caps if set (0 means no cap).
+            if (_maxPositiveTiles > 0 && positiveCount > _maxPositiveTiles)
+            {
+                Debug.LogWarning($"[BoardManager] Positive tile count {positiveCount} exceeds cap {_maxPositiveTiles} at risk {riskLevel}. Clamping.");
+                positiveCount = _maxPositiveTiles;
+            }
+            if (_maxNegativeTiles > 0 && negativeCount > _maxNegativeTiles)
+            {
+                Debug.LogWarning($"[BoardManager] Negative tile count {negativeCount} exceeds cap {_maxNegativeTiles} at risk {riskLevel}. Clamping.");
+                negativeCount = _maxNegativeTiles;
+            }
+
+            // Guard: never request more tiles than the pool contains.
             int total = positiveCount + negativeCount;
             if (total > pool.Count)
             {
-                Debug.LogWarning($"[BoardManager] Risk {riskLevel} wants {total} content tiles but only {pool.Count} non-checkpoint tiles exist. Clamping.");
+                Debug.LogWarning($"[BoardManager] Risk {riskLevel} wants {total} content tiles but only {pool.Count} non-checkpoint tiles exist. Clamping proportionally.");
                 float scale   = (float)pool.Count / total;
                 positiveCount = Mathf.FloorToInt(positiveCount * scale);
                 negativeCount = pool.Count - positiveCount;
@@ -126,6 +145,8 @@ namespace Board
             int idx = 0;
             for (int i = 0; i < positiveCount; i++, idx++) pool[idx].SetContent(TileContent.Positive);
             for (int i = 0; i < negativeCount; i++, idx++) pool[idx].SetContent(TileContent.Negative);
+
+            Debug.Log($"[BoardManager] Shuffled at risk {riskLevel} – {positiveCount} positive, {negativeCount} negative, {pool.Count - positiveCount - negativeCount} empty (of {pool.Count} non-checkpoint tiles).");
         }
 
         // ── Editor helpers ────────────────────────────────────────────────────────

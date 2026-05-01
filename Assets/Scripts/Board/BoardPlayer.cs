@@ -67,6 +67,7 @@ namespace Board
             _currentTileIndex = idx;
             transform.position = _boardManager.GetTileAtIndex(_currentTileIndex).transform.position;
             StoppedAtCheckpoint = false;
+            Debug.Log($"[BoardPlayer] Placed at checkpoint (sorted index {idx}).");
         }
 
         /// <summary>
@@ -85,6 +86,7 @@ namespace Board
                 Debug.LogWarning("[BoardPlayer] StartMovement called while already moving.");
                 return;
             }
+            Debug.Log($"[BoardPlayer] Starting movement – {steps} step(s) from tile index {_currentTileIndex}.");
             StartCoroutine(MoveSteps(steps));
         }
 
@@ -113,6 +115,7 @@ namespace Board
             }
 
             IsMoving = false;
+            Debug.Log($"[BoardPlayer] Movement finished at tile index {_currentTileIndex}. Stopped at checkpoint: {StoppedAtCheckpoint}.");
         }
 
         /// <summary>
