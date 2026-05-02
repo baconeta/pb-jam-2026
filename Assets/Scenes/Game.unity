@@ -4195,12 +4195,12 @@ MonoBehaviour:
   - {fileID: 997901838}
   - {fileID: 1082741523}
   - {fileID: 804628022}
-  _basePositiveCount: 2
+  _basePositiveCount: 3
   _baseNegativeCount: 1
   _positivePerRiskLevel: 2
-  _negativePerRiskLevel: 1
-  _maxPositiveTiles: 8
-  _maxNegativeTiles: 5
+  _negativePerRiskLevel: 2
+  _maxPositiveTiles: 10
+  _maxNegativeTiles: 6
 --- !u!1 &1329126907
 GameObject:
   m_ObjectHideFlags: 0
