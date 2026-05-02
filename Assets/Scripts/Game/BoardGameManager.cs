@@ -109,7 +109,7 @@ namespace Game
         {
             if (CurrentState != GameState.AtCheckpoint) return;
             _scoreManager.TakeCheckpoint();
-            ResolveCheckpointDecision();
+            ResolveCheckpointDecision(tookCheckpoint: true);
         }
 
         /// <summary>
@@ -120,7 +120,7 @@ namespace Game
         {
             if (CurrentState != GameState.AtCheckpoint) return;
             _scoreManager.SkipCheckpoint();
-            ResolveCheckpointDecision();
+            ResolveCheckpointDecision(tookCheckpoint: false);
         }
 
         /// <summary>Restarts the game from the beginning. Safe to call from any state.</summary>
@@ -169,7 +169,8 @@ namespace Game
             RefreshHUD();
             if (_ui != null)
             {
-                _ui.SetCheckpointPanelVisible(false);
+                _ui.ShowHud();
+                _ui.HideCheckpointPanel();
                 _ui.SetGameOverPanelVisible(false);
                 _ui.UpdateDiceResult(string.Empty);
                 RefreshHighScoreUI(); // Show existing scores on the game over panel from the start.
@@ -239,14 +240,36 @@ namespace Game
 
             yield return new WaitForSeconds(_checkpointRevealDelay);
 
-            if (_ui != null) _ui.SetCheckpointPanelVisible(true);
+            if (_ui != null)
+            {
+                int   nextRisk    = Mathf.Min(_scoreManager.RiskLevel + 1, _scoreManager.MaxRiskLevel);
+                float nextMult    = _scoreManager.GetMultiplier(nextRisk);
+                bool  atMaxRisk   = _scoreManager.RiskLevel >= _scoreManager.MaxRiskLevel;
+                _ui.ShowCheckpointPanel(
+                    _scoreManager.RunScore,
+                    _scoreManager.BankedScore,
+                    _scoreManager.CurrentMultiplier,
+                    nextMult,
+                    atMaxRisk);
+            }
             // State stays AtCheckpoint – waiting for TakeCheckpoint() or SkipCheckpoint().
         }
 
-        private void ResolveCheckpointDecision()
+        private void ResolveCheckpointDecision(bool tookCheckpoint)
         {
-            Debug.Log($"[BoardGameManager] Checkpoint decision resolved. Risk now: {_scoreManager.RiskLevel}, multiplier: {_scoreManager.CurrentMultiplier:F2}x.");
-            if (_ui != null) _ui.SetCheckpointPanelVisible(false);
+            Debug.Log($"[BoardGameManager] Checkpoint decision resolved (took={tookCheckpoint}). Risk now: {_scoreManager.RiskLevel}, multiplier: {_scoreManager.CurrentMultiplier:F2}x.");
+            if (_ui != null)
+            {
+                _ui.HideCheckpointPanel();
+
+                if (tookCheckpoint)
+                    _ui.AnimateBankedScoreChanged();
+                else
+                {
+                    _ui.AnimateRiskChanged();
+                    _ui.AnimateMultiplierChanged();
+                }
+            }
 
             // Reshuffle again now that the risk level has changed.
             _boardManager.ShuffleContents(_scoreManager.RiskLevel);
@@ -279,7 +302,11 @@ namespace Game
                             awarded += _twoDiceBonusAmount;
                         }
 
-                        if (_ui != null) _ui.UpdateDiceResult($"+{awarded}!");
+                        if (_ui != null)
+                        {
+                            _ui.UpdateDiceResult($"+{awarded}!");
+                            _ui.AnimateRunScoreChanged();
+                        }
                         RefreshHUD();
                         yield return new WaitForSeconds(0.6f);
                         break;

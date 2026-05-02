@@ -16,12 +16,26 @@ namespace UI
     /// </summary>
     public class UIController : MonoBehaviour
     {
+        [Header("Juice Animator")]
+        [Tooltip("UIJuiceAnimator component (any persistent GameObject). Drives all UI animations.")]
+        [SerializeField] private UIJuiceAnimator _juice;
+
+        [Header("HUD Root")]
+        [Tooltip("Parent GameObject for the entire HUD. Hidden on game over, shown on restart.")]
+        [SerializeField] private GameObject _hudRoot;
+
         [Header("HUD – Score")]
         [Tooltip("Displays banked (safe) score. Leave empty to skip.")]
         [SerializeField] private TMP_Text _bankedScoreText;
 
+        [Tooltip("RectTransform of the banked score label (used for bump animation).")]
+        [SerializeField] private RectTransform _bankedScoreRect;
+
         [Tooltip("Displays run (at-risk) score. Leave empty to skip.")]
         [SerializeField] private TMP_Text _runScoreText;
+
+        [Tooltip("RectTransform of the run score label (used for bump animation).")]
+        [SerializeField] private RectTransform _runScoreRect;
 
         [Tooltip("Displays total score (banked + run). Leave empty to skip.")]
         [SerializeField] private TMP_Text _scoreText;
@@ -30,8 +44,14 @@ namespace UI
         [Tooltip("Displays current risk level number.")]
         [SerializeField] private TMP_Text _riskText;
 
+        [Tooltip("RectTransform of the risk label (used for wobble animation).")]
+        [SerializeField] private RectTransform _riskRect;
+
         [Tooltip("Displays current score multiplier (e.g. '2.0×'). Leave empty to skip.")]
         [SerializeField] private TMP_Text _multiplierText;
+
+        [Tooltip("RectTransform of the multiplier label (used for punch animation).")]
+        [SerializeField] private RectTransform _multiplierRect;
 
         [Header("HUD – Dice")]
         [Tooltip("Shows the dice roll result (e.g. '5' or '3 + 4 = 7').")]
@@ -47,6 +67,30 @@ namespace UI
         [Header("Checkpoint Panel")]
         [Tooltip("Parent panel containing the Take / Skip buttons. Shown at checkpoint.")]
         [SerializeField] private GameObject _checkpointPanel;
+
+        [Tooltip("CanvasGroup on the checkpoint panel (used for fade-in). Add one if missing.")]
+        [SerializeField] private CanvasGroup _checkpointPanelGroup;
+
+        [Tooltip("RectTransform of the checkpoint panel (used for slap-in animation).")]
+        [SerializeField] private RectTransform _checkpointPanelRect;
+
+        [Tooltip("Headline text on the checkpoint panel (e.g. 'CHECKPOINT!').")]
+        [SerializeField] private TMP_Text _checkpointTitleText;
+
+        [Tooltip("Description text on the checkpoint panel showing run score and multiplier info.")]
+        [SerializeField] private TMP_Text _checkpointDescriptionText;
+
+        [Tooltip("Warning text shown when at max risk level (e.g. 'Max risk reached!').")]
+        [SerializeField] private TMP_Text _checkpointWarningText;
+
+        [Tooltip("Text showing what the multiplier will be after skipping (e.g. 'Next: 4.0×').")]
+        [SerializeField] private TMP_Text _nextMultiplierText;
+
+        [Tooltip("The 'Take / Bank' button on the checkpoint panel.")]
+        [SerializeField] private Button _bankButton;
+
+        [Tooltip("The 'Skip' button on the checkpoint panel.")]
+        [SerializeField] private Button _skipButton;
 
         [Header("Game Over Panel")]
         [Tooltip("Panel shown when the player hits a Negative tile.")]
@@ -74,7 +118,7 @@ namespace UI
         private void Awake()
         {
             // Start with panels hidden; the GameManager controls their visibility.
-            SetCheckpointPanelVisible(false);
+            HideCheckpointPanel();
             SetGameOverPanelVisible(false);
             if (_highScoreStandalonePanel != null) _highScoreStandalonePanel.SetActive(false);
         }
@@ -146,11 +190,66 @@ namespace UI
             if (_rollTwoDiceButton != null) _rollTwoDiceButton.interactable = interactable;
         }
 
+        // ── HUD show / hide ───────────────────────────────────────────────────────
+
+        public void ShowHud()
+        {
+            if (_hudRoot != null) _hudRoot.SetActive(true);
+        }
+
+        public void HideHud()
+        {
+            if (_hudRoot != null) _hudRoot.SetActive(false);
+        }
+
         // ── Checkpoint panel ──────────────────────────────────────────────────────
 
+        /// <summary>Legacy setter kept for any direct callers; prefer ShowCheckpointPanel / HideCheckpointPanel.</summary>
         public void SetCheckpointPanelVisible(bool visible)
         {
-            if (_checkpointPanel != null) _checkpointPanel.SetActive(visible);
+            if (visible) ShowCheckpointPanel(0, 0, 1f, 1f, false);
+            else         HideCheckpointPanel();
+        }
+
+        /// <summary>
+        /// Populates and animates the checkpoint panel into view.
+        /// </summary>
+        public void ShowCheckpointPanel(int runScore, int banked, float currentMult, float nextMult, bool atMaxRisk)
+        {
+            if (_checkpointPanel == null) return;
+            _checkpointPanel.SetActive(true);
+
+            if (_checkpointTitleText != null)
+                _checkpointTitleText.text = "CHECKPOINT!";
+
+            if (_checkpointDescriptionText != null)
+                _checkpointDescriptionText.text =
+                    $"At-risk score: {runScore}  ×  {currentMult:F1} = +{Mathf.RoundToInt(runScore * currentMult)}\n" +
+                    $"Banked: {banked}";
+
+            if (_checkpointWarningText != null)
+                _checkpointWarningText.gameObject.SetActive(atMaxRisk);
+
+            if (_nextMultiplierText != null)
+            {
+                _nextMultiplierText.gameObject.SetActive(!atMaxRisk);
+                if (!atMaxRisk)
+                    _nextMultiplierText.text = $"Skip → {nextMult:F1}×";
+            }
+
+            if (_skipButton != null)
+                _skipButton.interactable = !atMaxRisk;
+
+            if (_juice != null && _checkpointPanelRect != null)
+                _juice.SlapIn(_checkpointPanelRect, _checkpointPanelGroup);
+            else if (_checkpointPanelGroup != null)
+                _checkpointPanelGroup.alpha = 1f;
+        }
+
+        public void HideCheckpointPanel()
+        {
+            if (_checkpointPanel == null) return;
+            _checkpointPanel.SetActive(false);
         }
 
         // ── Game over panel ───────────────────────────────────────────────────────
@@ -166,6 +265,7 @@ namespace UI
         /// </summary>
         public void ShowGameOver(int bankedScore, int runScore)
         {
+            HideHud();
             SetGameOverPanelVisible(true);
             int total = bankedScore + runScore;
             if (_gameOverScoreText != null)
@@ -221,6 +321,32 @@ namespace UI
             for (int i = 0; i < scores.Count; i++)
                 sb.AppendLine($"{i + 1}.  {scores[i].playerName,-12}  {scores[i].score}");
             return sb.ToString();
+        }
+
+        // ── Juice helpers (called by GameManager after score/state changes) ────────
+
+        public void AnimateBankedScoreChanged()
+        {
+            if (_juice == null || _bankedScoreRect == null) return;
+            _juice.Bump(_bankedScoreRect);
+        }
+
+        public void AnimateRunScoreChanged()
+        {
+            if (_juice == null || _runScoreRect == null) return;
+            _juice.Bump(_runScoreRect);
+        }
+
+        public void AnimateMultiplierChanged()
+        {
+            if (_juice == null || _multiplierRect == null) return;
+            _juice.PunchText(_multiplierRect);
+        }
+
+        public void AnimateRiskChanged()
+        {
+            if (_juice == null || _riskRect == null) return;
+            _juice.Wobble(_riskRect);
         }
     }
 }
