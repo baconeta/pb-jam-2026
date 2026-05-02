@@ -149,9 +149,9 @@ namespace UI
         /// </summary>
         public void UpdateScoreUI(int banked, int run)
         {
-            if (_bankedScoreText != null) _bankedScoreText.text = $"Banked: {banked}";
-            if (_runScoreText    != null) _runScoreText.text    = $"At Risk: {run}";
-            if (_scoreText       != null) _scoreText.text       = $"Total: {banked + run}";
+            if (_bankedScoreText != null) _bankedScoreText.text = $"banked {banked}";
+            if (_runScoreText    != null) _runScoreText.text    = $"at risk {run}";
+            if (_scoreText       != null) _scoreText.text       = $"total {banked + run}";
         }
 
         /// <summary>
@@ -160,7 +160,7 @@ namespace UI
         /// </summary>
         public void UpdateRiskUI(int riskLevel, float multiplier)
         {
-            if (_riskText      != null) _riskText.text      = $"Risk: {riskLevel}";
+            if (_riskText      != null) _riskText.text      = $"risk level {riskLevel}";
             if (_multiplierText != null) _multiplierText.text = $"{multiplier:F1}×";
         }
 
@@ -169,13 +169,13 @@ namespace UI
         /// <summary>Updates total score text only. Prefer UpdateScoreUI() for the split display.</summary>
         public void UpdateScore(int score)
         {
-            if (_scoreText != null) _scoreText.text = $"Total: {score}";
+            if (_scoreText != null) _scoreText.text = $"total: {score}";
         }
 
         /// <summary>Updates risk level text only. Prefer UpdateRiskUI() to also show multiplier.</summary>
         public void UpdateRiskLevel(int riskLevel)
         {
-            if (_riskText != null) _riskText.text = $"Risk: {riskLevel}";
+            if (_riskText != null) _riskText.text = $"risk: {riskLevel}";
         }
 
         public void UpdateMultiplier(float multiplier)
@@ -185,12 +185,12 @@ namespace UI
 
         public void UpdateBankedScore(int banked)
         {
-            if (_bankedScoreText != null) _bankedScoreText.text = $"Banked: {banked}";
+            if (_bankedScoreText != null) _bankedScoreText.text = $"banked: {banked}";
         }
 
         public void UpdateRunScore(int run)
         {
-            if (_runScoreText != null) _runScoreText.text = $"At Risk: {run}";
+            if (_runScoreText != null) _runScoreText.text = $"at risk: {run}";
         }
 
         public void UpdateDiceResult(string result)
@@ -208,15 +208,15 @@ namespace UI
             string text;
             if (individualResults == null || individualResults.Count == 0)
             {
-                text = $"Rolled: {total}";
+                text = $"rolled: {total}";
             }
             else if (individualResults.Count == 1)
             {
-                text = $"Rolled: {individualResults[0]}";
+                text = $"rolled: {individualResults[0]}";
             }
             else
             {
-                var sb = new System.Text.StringBuilder("Rolled: ");
+                var sb = new System.Text.StringBuilder("rolled: ");
                 for (int i = 0; i < individualResults.Count; i++)
                 {
                     if (i > 0) sb.Append(" + ");
