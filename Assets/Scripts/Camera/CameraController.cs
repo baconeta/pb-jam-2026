@@ -19,34 +19,35 @@ namespace Game
     {
         [Header("Follow")]
         [Tooltip("Transform to follow (the player token). Assign in Inspector or call SetFollowTarget().")]
-        [SerializeField] private Transform _followTarget;
+        [SerializeField]
+        private Transform _followTarget;
 
-        [Tooltip("Lerp speed toward the follow target. Higher = snappier.")]
-        [SerializeField] private float _followSpeed = 6f;
+        [Tooltip("Lerp speed toward the follow target. Higher = snappier.")] [SerializeField]
+        private float _followSpeed = 6f;
 
-        [Header("Zoom")]
-        [Tooltip("Orthographic size when following the player.")]
-        [SerializeField] private float _zoomedInSize = 4f;
+        [Header("Zoom")] [Tooltip("Orthographic size when following the player.")] [SerializeField]
+        private float _zoomedInSize = 4f;
 
-        [Tooltip("Orthographic size when showing the whole board at checkpoint.")]
-        [SerializeField] private float _zoomedOutSize = 10f;
+        [Tooltip("Orthographic size when showing the whole board at checkpoint.")] [SerializeField]
+        private float _zoomedOutSize = 10f;
 
-        [Tooltip("Speed of orthographic size transitions.")]
-        [SerializeField] private float _zoomSpeed = 3f;
+        [Tooltip("Speed of orthographic size transitions.")] [SerializeField]
+        private float _zoomSpeed = 3f;
 
         [Header("Board Centre")]
         [Tooltip("World position to look at when zoomed out. Set this to the centre of your board layout.")]
-        [SerializeField] private Vector3 _boardCentrePosition = Vector3.zero;
+        [SerializeField]
+        private Vector3 _boardCentrePosition = Vector3.zero;
 
         // ── State ─────────────────────────────────────────────────────────────────
 
         private Camera _cam;
-        private bool   _following = true;
-        private float  _targetSize;
+        private bool _following = true;
+        private float _targetSize;
 
         private void Awake()
         {
-            _cam        = GetComponent<Camera>();
+            _cam = GetComponent<Camera>();
             _targetSize = _zoomedInSize;
         }
 
@@ -57,8 +58,13 @@ namespace Game
 
             if (_following && _followTarget != null)
             {
-                // Follow on X/Y; preserve camera Z so it doesn't fly into the scene.
-                Vector3 target = new Vector3(_followTarget.position.x, _followTarget.position.y, transform.position.z);
+                // Follow on X/Z; preserve camera Y height for top-down board.
+                Vector3 target = new Vector3(
+                    _followTarget.position.x,
+                    transform.position.y,
+                    _followTarget.position.z
+                );
+
                 transform.position = Vector3.Lerp(transform.position, target, Time.deltaTime * _followSpeed);
             }
         }
@@ -68,8 +74,8 @@ namespace Game
         /// <summary>Switches to follow-player mode and zooms in. Call when movement begins.</summary>
         public void SetFollowMode()
         {
-            _following   = true;
-            _targetSize  = _zoomedInSize;
+            _following = true;
+            _targetSize = _zoomedInSize;
         }
 
         /// <summary>
@@ -78,7 +84,7 @@ namespace Game
         /// </summary>
         public void SetCheckpointMode()
         {
-            _following  = false;
+            _following = false;
             _targetSize = _zoomedOutSize;
             StartCoroutine(PanToCentre());
         }
@@ -104,15 +110,18 @@ namespace Game
 
         private IEnumerator PanToCentre()
         {
-            Vector3 start  = transform.position;
-            Vector3 end    = new Vector3(_boardCentrePosition.x, _boardCentrePosition.y, transform.position.z);
-            // Drive pan duration from zoom speed so they feel synchronised.
+            Vector3 start = transform.position;
+            Vector3 end = new Vector3(
+                _boardCentrePosition.x,
+                transform.position.y,
+                _boardCentrePosition.z
+            ); // Drive pan duration from zoom speed so they feel synchronised.
             float duration = Mathf.Max(0.1f, 1f / _zoomSpeed);
-            float elapsed  = 0f;
+            float elapsed = 0f;
 
             while (elapsed < duration)
             {
-                elapsed           += Time.deltaTime;
+                elapsed += Time.deltaTime;
                 transform.position = Vector3.Lerp(start, end, Mathf.SmoothStep(0f, 1f, elapsed / duration));
                 yield return null;
             }
