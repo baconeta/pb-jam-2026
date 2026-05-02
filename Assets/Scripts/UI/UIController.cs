@@ -198,6 +198,36 @@ namespace UI
             if (_diceResultText != null) _diceResultText.text = result;
         }
 
+        /// <summary>
+        /// Formats and displays a dice result from one or more dice.
+        /// One die:  "Rolled: 4"
+        /// Two dice: "Rolled: 4 + 2 = 6"
+        /// </summary>
+        public void ShowDiceResult(int total, IReadOnlyList<int> individualResults)
+        {
+            string text;
+            if (individualResults == null || individualResults.Count == 0)
+            {
+                text = $"Rolled: {total}";
+            }
+            else if (individualResults.Count == 1)
+            {
+                text = $"Rolled: {individualResults[0]}";
+            }
+            else
+            {
+                var sb = new System.Text.StringBuilder("Rolled: ");
+                for (int i = 0; i < individualResults.Count; i++)
+                {
+                    if (i > 0) sb.Append(" + ");
+                    sb.Append(individualResults[i]);
+                }
+                sb.Append($" = {total}");
+                text = sb.ToString();
+            }
+            UpdateDiceResult(text);
+        }
+
         // ── Button state ──────────────────────────────────────────────────────────
 
         /// <summary>Enables or disables both roll buttons. Pass false while movement is happening.</summary>

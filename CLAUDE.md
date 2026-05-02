@@ -76,6 +76,25 @@ The board must be **shuffled and visible before the player rolls or makes decisi
 `CameraController.WaitForZoomComplete()` is a public coroutine that GameManager yields on
 to avoid showing decision UI before the zoom settles.
 
+## 3D Dice Rolling
+
+Dice rolling is visual/physics-driven via `DiceRoller` + `DieResultReader`, with a built-in fallback.
+
+**Three tiers** (all produce valid gameplay results):
+1. `_diceRoller` not assigned → `BoardGameManager` instant random (existing behaviour).
+2. `_diceRoller` assigned, `_diePrefab` missing → `DiceRoller` instant random fallback with warning.
+3. Both assigned → full physics roll, settle detection, face reading.
+
+**Face mapping**: `DieResultReader` uses six local-space normal vectors. Select a settled die in the
+Scene view to see Gizmo arrows. Adjust the vectors in the Inspector until each arrow points away from
+the correct face. Default layout assumes `+Y = 1, +Z = 2, +X = 3, -X = 4, -Z = 5, -Y = 6`.
+
+**Do not edit dice prefab or scene YAML.** Configure face normals and physics values through the
+Inspector only.
+
+**After any code change**, re-assign `_diceRoller` in `BoardGameManager`'s Inspector and
+`_diceContainer` / `_diePrefab` in the `DiceRoller` Inspector.
+
 ## Audio Hooks
 
 All gameplay audio is routed through `BoardGameAudioController` (attached to the GameManager

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using Board;
 using UI;
 using UnityEngine;
@@ -63,6 +64,10 @@ namespace Game
 
         [Tooltip("Score added when _twoDiceBonus is true and the player rolls two dice.")]
         [SerializeField] private int _twoDiceBonusAmount = 50;
+
+        [Header("Dice Roller")]
+        [Tooltip("DiceRoller component in the scene. Leave empty to use instant random dice (jam fallback).")]
+        [SerializeField] private DiceRoller _diceRoller;
 
         [Header("Audio")]
         [Tooltip("BoardGameAudioController on this GameObject. Leave empty to play no sounds.")]
@@ -221,25 +226,29 @@ namespace Game
             _audioController?.PlayDiceRoll();
 
             // ── Roll dice ──────────────────────────────────────────────────────────
-            int    total;
-            string displayText;
+            int total;
+            IReadOnlyList<int> individuals;
 
-            if (diceCount == 1)
+            if (_diceRoller != null)
             {
-                int roll = Random.Range(1, _dieFaces + 1);
-                total       = roll;
-                displayText = $"Rolled: {roll}";
+                // Physics roll – waits for dice to spawn, tumble, and settle.
+                yield return StartCoroutine(_diceRoller.RollDiceRoutine(diceCount));
+                total       = _diceRoller.LastRollTotal;
+                individuals = _diceRoller.LastRollIndividuals;
             }
             else
             {
-                int r1 = Random.Range(1, _dieFaces + 1);
-                int r2 = Random.Range(1, _dieFaces + 1);
-                total       = r1 + r2;
-                displayText = $"Rolled: {r1} + {r2} = {total}";
+                // Instant random fallback – used when no DiceRoller is assigned.
+                var results = new List<int>();
+                for (int i = 0; i < diceCount; i++)
+                    results.Add(Random.Range(1, _dieFaces + 1));
+                individuals = results.AsReadOnly();
+                total = 0;
+                foreach (var v in individuals) total += v;
             }
 
-            Debug.Log($"[BoardGameManager] Dice roll – {diceCount} die/dice, result: {displayText}, moving {total} step(s).");
-            if (_ui != null) _ui.UpdateDiceResult(displayText);
+            Debug.Log($"[BoardGameManager] Dice roll – {diceCount} die/dice, total: {total}, moving {total} step(s).");
+            if (_ui != null) _ui.ShowDiceResult(total, individuals);
 
             // Brief pause so the player can read the roll result.
             yield return new WaitForSeconds(_diceDisplayDuration);
