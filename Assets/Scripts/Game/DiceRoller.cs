@@ -156,7 +156,7 @@ namespace Game
                 GameObject die = Instantiate(_diePrefab, spawnPos, Random.rotation);
                 _activeDice.Add(die);
 
-                Rigidbody rb = die.GetComponent<Rigidbody>();
+                Rigidbody rb = die.GetComponentInChildren<Rigidbody>();
                 if (rb != null)
                 {
                     rigidbodies.Add(rb);
@@ -186,7 +186,7 @@ namespace Game
             foreach (var die in _activeDice)
             {
                 if (die == null) { results.Add(1); continue; }
-                var reader = die.GetComponent<DieResultReader>();
+                var reader = die.GetComponentInChildren<DieResultReader>();
                 if (reader != null)
                 {
                     results.Add(reader.GetTopFaceValue());
