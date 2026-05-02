@@ -5365,10 +5365,15 @@ MonoBehaviour:
   _spawnSpread: 0.12
   _launchForce: 1
   _upwardForce: 3
-  _torqueForce: 8
+  _torqueImpulse: 20
+  _minTorqueImpulse: 50
+  _maxTorqueImpulse: 200
+  _useRandomTorqueRange: 1
+  _initialAngularVelocity: 20
   _settleVelocityThreshold: 0.05
   _settleAngularVelocityThreshold: 0.05
-  _requiredStillTime: 0.4
+  _requiredStillTime: 0.7
+  _minimumRollDuration: 1
   _maxSettleTime: 8
   _cleanupDelay: 1.4
   _showDicePanelDuringRoll: 1

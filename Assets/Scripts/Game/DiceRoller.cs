@@ -47,8 +47,21 @@ namespace Game
         [Tooltip("Upward (Y) velocity applied on spawn so dice bounce off the floor.")]
         [SerializeField] private float _upwardForce = 2f;
 
-        [Tooltip("Rotational impulse magnitude.")]
-        [SerializeField] private float _torqueForce = 8f;
+        [Tooltip("Rotational impulse when useRandomTorqueRange is off.")]
+        [SerializeField] private float _torqueImpulse = 16f;
+
+        [Tooltip("Minimum rotational impulse when useRandomTorqueRange is on.")]
+        [SerializeField] private float _minTorqueImpulse = 10f;
+
+        [Tooltip("Maximum rotational impulse when useRandomTorqueRange is on.")]
+        [SerializeField] private float _maxTorqueImpulse = 24f;
+
+        [Tooltip("When true the torque magnitude is randomised between min and max each roll.")]
+        [SerializeField] private bool _useRandomTorqueRange = true;
+
+        [Tooltip("Extra angular velocity added directly to rb.angularVelocity after the impulse. " +
+                 "Increase this if dice still feel sluggish after raising torque.")]
+        [SerializeField] private float _initialAngularVelocity = 6f;
 
         [Header("Settle Detection")]
         [Tooltip("Linear velocity below which a die is considered still.")]
@@ -59,6 +72,10 @@ namespace Game
 
         [Tooltip("Seconds all dice must remain below thresholds before reading values.")]
         [SerializeField] private float _requiredStillTime = 0.4f;
+
+        [Tooltip("Minimum seconds the settle loop must run before a still die can be accepted. " +
+                 "Prevents a slow-spinning die from being read on the very first frame.")]
+        [SerializeField] private float _minimumRollDuration = 1.0f;
 
         [Tooltip("Hard timeout: read values even if dice have not settled after this many seconds.")]
         [SerializeField] private float _maxSettleTime = 8f;
@@ -149,7 +166,11 @@ namespace Game
                         Random.Range(-1f, 1f) * _launchForce,
                         _upwardForce,
                         Random.Range(-1f, 1f) * _launchForce);
-                    rb.AddTorque(Random.insideUnitSphere * _torqueForce, ForceMode.Impulse);
+                    float   tMag   = _useRandomTorqueRange
+                                         ? Random.Range(_minTorqueImpulse, _maxTorqueImpulse)
+                                         : _torqueImpulse;
+                    rb.AddTorque(Random.onUnitSphere * tMag, ForceMode.Impulse);
+                    rb.angularVelocity += Random.onUnitSphere * _initialAngularVelocity;
                 }
                 else
                 {
@@ -195,20 +216,24 @@ namespace Game
 
             while (stillTimer < _requiredStillTime && timeoutTimer < _maxSettleTime)
             {
+                // Never accept a "still" reading before the minimum roll time has elapsed.
+                // This prevents a die that spawns on a flat face from being read immediately.
+                bool pastMinimum = timeoutTimer >= _minimumRollDuration;
+
                 bool allStill = true;
                 foreach (var rb in rigidbodies)
                 {
                     if (rb == null) continue;
-                    if (rb.linearVelocity.magnitude    > _settleVelocityThreshold ||
-                        rb.angularVelocity.magnitude   > _settleAngularVelocityThreshold)
+                    if (rb.linearVelocity.magnitude  > _settleVelocityThreshold ||
+                        rb.angularVelocity.magnitude > _settleAngularVelocityThreshold)
                     {
                         allStill = false;
                         break;
                     }
                 }
 
-                if (allStill) stillTimer   += Time.deltaTime;
-                else          stillTimer    = 0f;
+                if (allStill && pastMinimum) stillTimer += Time.deltaTime;
+                else                         stillTimer  = 0f;
                 timeoutTimer += Time.deltaTime;
                 yield return null;
             }
