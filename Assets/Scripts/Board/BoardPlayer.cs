@@ -17,6 +17,9 @@ namespace Board
         [Tooltip("The BoardManager in the scene.")]
         [SerializeField] private BoardManager _boardManager;
 
+        [Tooltip("Audio controller for hop sounds. Leave empty for no hop audio.")]
+        [SerializeField] private Game.BoardGameAudioController _audio;
+
         [Header("Movement")]
         [Tooltip("Seconds to travel between adjacent tiles.")]
         [SerializeField] private float _tileMoveDuration = 0.18f;
@@ -126,6 +129,8 @@ namespace Board
         {
             BoardTile target = _boardManager.GetTileAtIndex(targetIndex);
             if (target == null) yield break;
+
+            _audio?.PlayPlayerHop();
 
             Vector3 startPos = transform.position;
             Vector3 endPos   = target.transform.position;

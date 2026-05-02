@@ -60,6 +60,35 @@ Assets/
   be changed to "return to checkpoint" without touching other systems.
 - High scores use PlayerPrefs + JsonUtility (top 5, local only).
 
+## Game Flow & Board Preview
+
+The board must be **shuffled and visible before the player rolls or makes decisions.**
+
+- **Start of game** (`InitGame`): board is shuffled at risk 0, camera is zoomed out,
+  start panel appears. `StartGame()` (wired to the Start button) zooms in and begins play.
+- **Checkpoint reached** (`HandleCheckpointReached`): board reshuffles at current risk,
+  camera zooms out and waits for zoom to complete, then the checkpoint decision panel appears.
+  The player makes their decision while seeing the full board layout.
+- **After Take**: board reshuffles at risk 0 (cleaner board), camera zooms in, play resumes.
+- **After Skip**: board reshuffles at new (higher) risk, stays zoomed out for
+  `_boardPreviewDuration` seconds so the player sees the result, then camera zooms in.
+
+`CameraController.WaitForZoomComplete()` is a public coroutine that GameManager yields on
+to avoid showing decision UI before the zoom settles.
+
+## Audio Hooks
+
+All gameplay audio is routed through `BoardGameAudioController` (attached to the GameManager
+GameObject). It calls `AudioWrapper.Instance.PlaySound(string)` by name.
+
+- **All audio fields are optional** — leave any string empty to skip that sound silently.
+- If `AudioWrapper` is missing from the scene, a single warning is logged and all sounds are
+  suppressed. The game continues to function normally.
+- **Do not hardcode audio clip paths or add AudioClip assets through code.** Sounds are
+  configured entirely in the Inspector via AudioWrapper's SoundData list.
+- `BoardPlayer` has a direct `_audio` reference for per-hop sounds to avoid routing all
+  movement audio through GameManager.
+
 ## Banked vs Run Score System
 
 `ScoreManager` tracks two score buckets:

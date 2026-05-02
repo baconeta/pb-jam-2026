@@ -35,10 +35,12 @@ namespace Game
 
         public enum GameState
         {
+            PreStartPreview,  // board visible, start panel shown; no dice input
             WaitingForRoll,
             Rolling,
             Moving,
             ResolvingTile,
+            CheckpointPreview, // board reshuffled + zoomed out; decision UI not yet shown
             AtCheckpoint,
             GameOver
         }
@@ -62,12 +64,17 @@ namespace Game
         [Tooltip("Score added when _twoDiceBonus is true and the player rolls two dice.")]
         [SerializeField] private int _twoDiceBonusAmount = 50;
 
+        [Header("Audio")]
+        [Tooltip("BoardGameAudioController on this GameObject. Leave empty to play no sounds.")]
+        [SerializeField] private BoardGameAudioController _audioController;
+
         [Header("Timing")]
         [Tooltip("Seconds to display the dice result before the token starts moving.")]
         [SerializeField] private float _diceDisplayDuration = 0.8f;
 
-        [Tooltip("Seconds to wait after the camera zooms out before showing the checkpoint panel.")]
+        [Tooltip("Seconds to wait after the camera finishes zooming out before showing the checkpoint panel.")]
         [SerializeField] private float _checkpointRevealDelay = 0.5f;
+
 
         // ── Runtime state ─────────────────────────────────────────────────────────
 
@@ -80,15 +87,38 @@ namespace Game
 
         private void Start()
         {
-            StartGame();
+            InitGame();
         }
 
         // ── Public API – wire these to UI buttons ─────────────────────────────────
+
+        /// <summary>
+        /// Called by the Start button during PreStartPreview.
+        /// Hides the start panel, zooms in, and begins normal play.
+        /// </summary>
+        public void StartGame()
+        {
+            if (CurrentState != GameState.PreStartPreview) return;
+            StartCoroutine(StartGameRoutine());
+        }
+
+        private IEnumerator StartGameRoutine()
+        {
+            SetState(GameState.Moving); // blocks roll input while zooming in
+            _ui?.HideStartPanel();
+            _audioController?.PlayStartGame();
+            if (_camera != null) _camera.SetFollowMode();
+            if (_camera != null) yield return StartCoroutine(_camera.WaitForZoomComplete());
+            _ui?.ShowHud();
+            RefreshHUD();
+            SetState(GameState.WaitingForRoll);
+        }
 
         /// <summary>Roll one d6 and move. No-op if not waiting for a roll.</summary>
         public void RollOneDie()
         {
             if (CurrentState != GameState.WaitingForRoll) return;
+            _audioController?.PlayButtonClick();
             _lastRollWasTwoDice = false;
             StartCoroutine(RollAndMove(1));
         }
@@ -97,6 +127,7 @@ namespace Game
         public void RollTwoDice()
         {
             if (CurrentState != GameState.WaitingForRoll) return;
+            _audioController?.PlayButtonClick();
             _lastRollWasTwoDice = true;
             StartCoroutine(RollAndMove(2));
         }
@@ -109,7 +140,7 @@ namespace Game
         {
             if (CurrentState != GameState.AtCheckpoint) return;
             _scoreManager.TakeCheckpoint();
-            ResolveCheckpointDecision(tookCheckpoint: true);
+            StartCoroutine(ResolveCheckpointDecisionRoutine(tookCheckpoint: true));
         }
 
         /// <summary>
@@ -120,14 +151,14 @@ namespace Game
         {
             if (CurrentState != GameState.AtCheckpoint) return;
             _scoreManager.SkipCheckpoint();
-            ResolveCheckpointDecision(tookCheckpoint: false);
+            StartCoroutine(ResolveCheckpointDecisionRoutine(tookCheckpoint: false));
         }
 
         /// <summary>Restarts the game from the beginning. Safe to call from any state.</summary>
         public void RestartGame()
         {
             StopAllCoroutines();
-            StartGame();
+            InitGame();
         }
 
         /// <summary>
@@ -142,6 +173,7 @@ namespace Game
             Debug.Log($"[BoardGameManager] Submitting high score – name: '{name}', score: {score} " +
                       $"(banked {_scoreManager.BankedScore} + run {_scoreManager.RunScore}).");
             HighScoreManager.SaveScore(name, score);
+            _audioController?.PlayHighScoreSaved();
             RefreshHighScoreUI();
         }
 
@@ -157,31 +189,36 @@ namespace Game
 
         // ── Game flow ─────────────────────────────────────────────────────────────
 
-        private void StartGame()
+        // Initialises a fresh game session and enters PreStartPreview.
+        // Board is shuffled and zoomed out so the player can inspect before pressing Start.
+        private void InitGame()
         {
-            Debug.Log("[BoardGameManager] Game starting.");
+            Debug.Log("[BoardGameManager] Initialising game – entering board preview.");
             _scoreManager.ResetSession();
             _player.PlaceAtCheckpoint();
-            _boardManager.ShuffleContents(_scoreManager.RiskLevel);
+            _boardManager.ShuffleContents(0);
+            _audioController?.PlayBoardShuffle();
 
-            if (_camera != null) _camera.SetFollowMode();
+            if (_camera != null) _camera.SetCheckpointMode(); // zoomed out from the start
 
             RefreshHUD();
             if (_ui != null)
             {
-                _ui.ShowHud();
+                _ui.HideHud();
                 _ui.HideCheckpointPanel();
                 _ui.SetGameOverPanelVisible(false);
+                _ui.ShowStartPanel();
                 _ui.UpdateDiceResult(string.Empty);
-                RefreshHighScoreUI(); // Show existing scores on the game over panel from the start.
+                RefreshHighScoreUI();
             }
 
-            SetState(GameState.WaitingForRoll);
+            SetState(GameState.PreStartPreview);
         }
 
         private IEnumerator RollAndMove(int diceCount)
         {
             SetState(GameState.Rolling);
+            _audioController?.PlayDiceRoll();
 
             // ── Roll dice ──────────────────────────────────────────────────────────
             int    total;
@@ -228,54 +265,69 @@ namespace Game
         private IEnumerator HandleCheckpointReached()
         {
             Debug.Log($"[BoardGameManager] Checkpoint reached. Banked: {_scoreManager.BankedScore}, " +
-                      $"at-risk run: {_scoreManager.RunScore}, risk level: {_scoreManager.RiskLevel}, " +
+                      $"at-risk: {_scoreManager.RunScore}, risk: {_scoreManager.RiskLevel}, " +
                       $"multiplier: {_scoreManager.CurrentMultiplier:F2}x.");
-            SetState(GameState.AtCheckpoint);
+            SetState(GameState.CheckpointPreview);
+            _ui?.HideDiceControls();
+            _audioController?.PlayCheckpointReached();
+
+            // Reshuffle at current risk immediately so the zoomed-out board shows the
+            // actual layout the player will be rolling into, informing their Take/Skip decision.
+            _boardManager.ShuffleContents(_scoreManager.RiskLevel);
+            _audioController?.PlayBoardShuffle();
 
             if (_camera != null) _camera.SetCheckpointMode();
-
-            // Reshuffle now using the pre-decision risk level so the player can see
-            // what the board looks like before they commit to Take or Skip.
-            _boardManager.ShuffleContents(_scoreManager.RiskLevel);
+            if (_camera != null) yield return StartCoroutine(_camera.WaitForZoomComplete());
 
             yield return new WaitForSeconds(_checkpointRevealDelay);
 
+            SetState(GameState.AtCheckpoint);
+
             if (_ui != null)
             {
-                int   nextRisk    = Mathf.Min(_scoreManager.RiskLevel + 1, _scoreManager.MaxRiskLevel);
-                float nextMult    = _scoreManager.GetMultiplier(nextRisk);
-                bool  atMaxRisk   = _scoreManager.RiskLevel >= _scoreManager.MaxRiskLevel;
+                int   nextRisk  = Mathf.Min(_scoreManager.RiskLevel + 1, _scoreManager.MaxRiskLevel);
+                float nextMult  = _scoreManager.GetMultiplier(nextRisk);
+                bool  atMaxRisk = _scoreManager.RiskLevel >= _scoreManager.MaxRiskLevel;
                 _ui.ShowCheckpointPanel(
                     _scoreManager.RunScore,
                     _scoreManager.BankedScore,
                     _scoreManager.CurrentMultiplier,
                     nextMult,
                     atMaxRisk);
+                _audioController?.PlayPanelOpen();
             }
             // State stays AtCheckpoint – waiting for TakeCheckpoint() or SkipCheckpoint().
         }
 
-        private void ResolveCheckpointDecision(bool tookCheckpoint)
+        private IEnumerator ResolveCheckpointDecisionRoutine(bool tookCheckpoint)
         {
-            Debug.Log($"[BoardGameManager] Checkpoint decision resolved (took={tookCheckpoint}). Risk now: {_scoreManager.RiskLevel}, multiplier: {_scoreManager.CurrentMultiplier:F2}x.");
-            if (_ui != null)
-            {
-                _ui.HideCheckpointPanel();
+            _ui?.HideCheckpointPanel();
+            _audioController?.PlayPanelClose();
 
-                if (tookCheckpoint)
-                    _ui.AnimateBankedScoreChanged();
-                else
-                {
-                    _ui.AnimateRiskChanged();
-                    _ui.AnimateMultiplierChanged();
-                }
+            // Board is NOT reshuffled here. The shuffle happened before the decision so the
+            // player could make an informed choice. They now play on that same board.
+            if (tookCheckpoint)
+            {
+                Debug.Log($"[BoardGameManager] Checkpoint taken. Risk reset to 0. Banked: {_scoreManager.BankedScore}.");
+                _audioController?.PlayCheckpointBank();
+                _ui?.AnimateBankedScoreTransferred();
+            }
+            else
+            {
+                Debug.Log($"[BoardGameManager] Checkpoint skipped. Risk: {_scoreManager.RiskLevel}, " +
+                          $"multiplier: {_scoreManager.CurrentMultiplier:F2}x.");
+                _audioController?.PlayCheckpointSkip();
+                _audioController?.PlayRiskIncrease();
+                _audioController?.PlayMultiplierPop();
+                _ui?.AnimateRiskChanged();
+                _ui?.AnimateMultiplierChanged();
             }
 
-            // Reshuffle again now that the risk level has changed.
-            _boardManager.ShuffleContents(_scoreManager.RiskLevel);
-
-            RefreshHUD();
             if (_camera != null) _camera.SetFollowMode();
+            if (_camera != null) yield return StartCoroutine(_camera.WaitForZoomComplete());
+
+            _ui?.ShowDiceControls();
+            RefreshHUD();
             SetState(GameState.WaitingForRoll);
         }
 
@@ -302,17 +354,15 @@ namespace Game
                             awarded += _twoDiceBonusAmount;
                         }
 
-                        if (_ui != null)
-                        {
-                            _ui.UpdateDiceResult($"+{awarded}!");
-                            _ui.AnimateRunScoreChanged();
-                        }
+                        _audioController?.PlayPositiveCollect();
+                        if (_ui != null) _ui.ShowScoreGain(awarded, _player.transform.position);
                         RefreshHUD();
                         yield return new WaitForSeconds(0.6f);
                         break;
 
                     case TileContent.Negative:
                         Debug.Log("[BoardGameManager] Negative tile hit!");
+                        _audioController?.PlayNegativeHit();
                         // Currently triggers game over.
                         // TO CHANGE: replace TriggerGameOver() here with e.g. ReturnToCheckpoint().
                         // ScoreManager and BoardManager don't need to change – only this block.
@@ -335,6 +385,7 @@ namespace Game
                       $"at-risk: {_scoreManager.RunScore}, total: {_scoreManager.GetTotalScore()}, " +
                       $"risk level was: {_scoreManager.RiskLevel}.");
             SetState(GameState.GameOver);
+            _audioController?.PlayGameOver();
 
             if (_ui != null)
             {
@@ -342,7 +393,7 @@ namespace Game
                 RefreshHighScoreUI();
             }
 
-            yield return null; // Placeholder – add a delay or animation here if needed.
+            yield return null;
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────────

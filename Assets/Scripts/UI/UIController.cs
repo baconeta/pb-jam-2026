@@ -20,6 +20,22 @@ namespace UI
         [Tooltip("UIJuiceAnimator component (any persistent GameObject). Drives all UI animations.")]
         [SerializeField] private UIJuiceAnimator _juice;
 
+        [Header("Start Panel")]
+        [Tooltip("Panel shown at game start before the player rolls. Hidden when StartGame() is called.")]
+        [SerializeField] private GameObject _startPanel;
+
+        [Tooltip("RectTransform of the start panel (used for slap-in animation).")]
+        [SerializeField] private RectTransform _startPanelRect;
+
+        [Tooltip("CanvasGroup on the start panel (used for fade-in). Add one if missing.")]
+        [SerializeField] private CanvasGroup _startPanelGroup;
+
+        [Tooltip("Title text on the start panel.")]
+        [SerializeField] private TMP_Text _startTitleText;
+
+        [Tooltip("Description text on the start panel.")]
+        [SerializeField] private TMP_Text _startDescriptionText;
+
         [Header("HUD Root")]
         [Tooltip("Parent GameObject for the entire HUD. Hidden on game over, shown on restart.")]
         [SerializeField] private GameObject _hudRoot;
@@ -118,6 +134,7 @@ namespace UI
         private void Awake()
         {
             // Start with panels hidden; the GameManager controls their visibility.
+            if (_startPanel != null) _startPanel.SetActive(false);
             HideCheckpointPanel();
             SetGameOverPanelVisible(false);
             if (_highScoreStandalonePanel != null) _highScoreStandalonePanel.SetActive(false);
@@ -190,6 +207,26 @@ namespace UI
             if (_rollTwoDiceButton != null) _rollTwoDiceButton.interactable = interactable;
         }
 
+        // ── Start panel ───────────────────────────────────────────────────────────
+
+        public void ShowStartPanel()
+        {
+            if (_startPanel == null) return;
+            _startPanel.SetActive(true);
+            if (_startTitleText       != null) _startTitleText.text       = "Study the Board";
+            if (_startDescriptionText != null) _startDescriptionText.text =
+                "The sticky notes are shuffled.\nPick your path, then start rolling.";
+            if (_juice != null && _startPanelRect != null)
+                _juice.SlapIn(_startPanelRect, _startPanelGroup);
+            else if (_startPanelGroup != null)
+                _startPanelGroup.alpha = 1f;
+        }
+
+        public void HideStartPanel()
+        {
+            if (_startPanel != null) _startPanel.SetActive(false);
+        }
+
         // ── HUD show / hide ───────────────────────────────────────────────────────
 
         public void ShowHud()
@@ -200,6 +237,29 @@ namespace UI
         public void HideHud()
         {
             if (_hudRoot != null) _hudRoot.SetActive(false);
+        }
+
+        /// <summary>
+        /// Hides only the dice result text and roll buttons, leaving score/risk labels visible.
+        /// Use during the checkpoint phase so the player can still see their score while deciding.
+        /// </summary>
+        public void HideDiceControls()
+        {
+            if (_diceResultText    != null) _diceResultText.gameObject.SetActive(false);
+            if (_rollOneDieButton  != null) _rollOneDieButton.gameObject.SetActive(false);
+            if (_rollTwoDiceButton != null) _rollTwoDiceButton.gameObject.SetActive(false);
+        }
+
+        /// <summary>Restores dice result text and roll buttons. Clears stale roll text.</summary>
+        public void ShowDiceControls()
+        {
+            if (_diceResultText != null)
+            {
+                _diceResultText.text = string.Empty;
+                _diceResultText.gameObject.SetActive(true);
+            }
+            if (_rollOneDieButton  != null) _rollOneDieButton.gameObject.SetActive(true);
+            if (_rollTwoDiceButton != null) _rollTwoDiceButton.gameObject.SetActive(true);
         }
 
         // ── Checkpoint panel ──────────────────────────────────────────────────────
@@ -213,6 +273,7 @@ namespace UI
 
         /// <summary>
         /// Populates and animates the checkpoint panel into view.
+        /// The board has already been reshuffled and is visible behind this panel.
         /// </summary>
         public void ShowCheckpointPanel(int runScore, int banked, float currentMult, float nextMult, bool atMaxRisk)
         {
@@ -220,15 +281,31 @@ namespace UI
             _checkpointPanel.SetActive(true);
 
             if (_checkpointTitleText != null)
-                _checkpointTitleText.text = "CHECKPOINT!";
+                _checkpointTitleText.text = "Checkpoint!";
 
             if (_checkpointDescriptionText != null)
                 _checkpointDescriptionText.text =
-                    $"At-risk score: {runScore}  ×  {currentMult:F1} = +{Mathf.RoundToInt(runScore * currentMult)}\n" +
-                    $"Banked: {banked}";
+                    "The board has changed.\nBank your at-risk score, or skip for a bigger multiplier.";
+
+            // Dynamic bank button label shows the exact score the player will lock in.
+            if (_bankButton != null)
+            {
+                var label = _bankButton.GetComponentInChildren<TMP_Text>();
+                if (label != null) label.text = $"Bank +{runScore}";
+            }
+
+            if (_skipButton != null)
+            {
+                var label = _skipButton.GetComponentInChildren<TMP_Text>();
+                if (label != null) label.text = "Skip Checkpoint";
+                _skipButton.interactable = !atMaxRisk;
+            }
 
             if (_checkpointWarningText != null)
-                _checkpointWarningText.gameObject.SetActive(atMaxRisk);
+            {
+                _checkpointWarningText.text = "More rewards. More danger.";
+                _checkpointWarningText.gameObject.SetActive(!atMaxRisk);
+            }
 
             if (_nextMultiplierText != null)
             {
@@ -236,9 +313,6 @@ namespace UI
                 if (!atMaxRisk)
                     _nextMultiplierText.text = $"Skip → {nextMult:F1}×";
             }
-
-            if (_skipButton != null)
-                _skipButton.interactable = !atMaxRisk;
 
             if (_juice != null && _checkpointPanelRect != null)
                 _juice.SlapIn(_checkpointPanelRect, _checkpointPanelGroup);
@@ -324,6 +398,25 @@ namespace UI
         }
 
         // ── Juice helpers (called by GameManager after score/state changes) ────────
+
+        /// <summary>
+        /// Updates the dice result text to show the score delta and bumps the run-score label.
+        /// <paramref name="worldPosition"/> is accepted for API compatibility but floating world-space
+        /// text is not implemented – the HUD bump is the flair for now.
+        /// </summary>
+        public void ShowScoreGain(int amount, Vector3 worldPosition)
+        {
+            UpdateDiceResult($"+{amount}!");
+            AnimateScoreCollected();
+        }
+
+        public void AnimateScoreCollected() => AnimateRunScoreChanged();
+
+        public void AnimateBankedScoreTransferred()
+        {
+            if (_juice == null || _bankedScoreRect == null) return;
+            _juice.PunchText(_bankedScoreRect);
+        }
 
         public void AnimateBankedScoreChanged()
         {

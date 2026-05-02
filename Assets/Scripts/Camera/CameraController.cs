@@ -89,6 +89,17 @@ namespace Game
             _followTarget = target;
         }
 
+        /// <summary>
+        /// Yields until the camera's orthographic size is within <paramref name="threshold"/>
+        /// of its target. Use this from GameManager coroutines to wait for a zoom to settle:
+        ///   yield return StartCoroutine(_camera.WaitForZoomComplete());
+        /// </summary>
+        public IEnumerator WaitForZoomComplete(float threshold = 0.15f)
+        {
+            while (Mathf.Abs(_cam.orthographicSize - _targetSize) > threshold)
+                yield return null;
+        }
+
         // ── Private ───────────────────────────────────────────────────────────────
 
         private IEnumerator PanToCentre()
