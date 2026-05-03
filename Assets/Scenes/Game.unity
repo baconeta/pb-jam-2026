@@ -2569,7 +2569,7 @@ MonoBehaviour:
   _followTarget: {fileID: 147915723}
   _followSpeed: 6
   _zoomedInSize: 2
-  _zoomedOutSize: 7
+  _zoomedOutSize: 6.5
   _zoomSpeed: 3
   _boardCentrePosition: {x: -6, y: 0, z: 0}
 --- !u!1001 &662189813
