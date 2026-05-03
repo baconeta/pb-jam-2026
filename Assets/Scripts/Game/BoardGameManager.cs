@@ -344,9 +344,6 @@ namespace Game
                 Debug.Log($"[BoardGameManager] Checkpoint taken. Risk reset to 0. Banked: {_scoreManager.BankedScore}.");
                 _audioController?.PlayCheckpointBank();
                 _ui?.AnimateBankedScoreTransferred();
-                
-                _boardManager.ShuffleContents(_scoreManager.RiskLevel);
-                _audioController?.PlayBoardShuffle();
             }
             else
             {
