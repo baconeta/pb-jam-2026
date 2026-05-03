@@ -3130,6 +3130,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Game.BoardGameAudioController
   _startGameSound: 
   _startGameSounds: []
+  _startGameDelayMs: 0
   _diceRollSound: 
   _diceRollSounds:
   - dice_rolls_1
@@ -3138,34 +3139,49 @@ MonoBehaviour:
   - die_roll_3
   - die_roll_4
   - die_roll_5
+  _diceRollDelayMs: 200
   _playerHopSound: 
   _playerHopSounds: []
+  _playerHopDelayMs: 0
   _positiveCollectSound: 
   _positiveCollectSounds: []
+  _positiveCollectDelayMs: 0
   _negativeHitSound: 
   _negativeHitSounds: []
+  _negativeHitDelayMs: 0
   _gameOverSound: 
   _gameOverSounds: []
+  _gameOverDelayMs: 0
   _checkpointReachedSound: checkpoint
   _checkpointReachedSounds: []
+  _checkpointReachedDelayMs: 0
   _checkpointBankSound: 
   _checkpointBankSounds: []
+  _checkpointBankDelayMs: 0
   _checkpointSkipSound: 
   _checkpointSkipSounds: []
+  _checkpointSkipDelayMs: 0
   _riskIncreaseSound: 
   _riskIncreaseSounds: []
+  _riskIncreaseDelayMs: 0
   _multiplierPopSound: 
   _multiplierPopSounds: []
+  _multiplierPopDelayMs: 0
   _boardShuffleSound: 
   _boardShuffleSounds: []
+  _boardShuffleDelayMs: 0
   _highScoreSavedSound: 
   _highScoreSavedSounds: []
+  _highScoreSavedDelayMs: 0
   _buttonClickSound: 
   _buttonClickSounds: []
+  _buttonClickDelayMs: 0
   _panelOpenSound: 
   _panelOpenSounds: []
+  _panelOpenDelayMs: 0
   _panelCloseSound: 
   _panelCloseSounds: []
+  _panelCloseDelayMs: 0
 --- !u!1 &905548142
 GameObject:
   m_ObjectHideFlags: 0
