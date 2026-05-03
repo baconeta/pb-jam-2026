@@ -118,6 +118,7 @@ namespace Game
         {
             SetState(GameState.Moving); // blocks roll input while zooming in
             _ui?.HideStartPanel();
+            _ui?.DisplayStandaloneHighScorePanel(false);
             _audioController?.PlayStartGame();
             if (_camera != null) _camera.SetFollowMode();
             if (_camera != null) yield return StartCoroutine(_camera.WaitForZoomComplete());
@@ -187,6 +188,7 @@ namespace Game
             HighScoreManager.SaveScore(name, score);
             _audioController?.PlayHighScoreSaved();
             RefreshHighScoreUI();
+            ToggleHighScorePanel();
         }
 
         /// <summary>
@@ -196,7 +198,7 @@ namespace Game
         public void ToggleHighScorePanel()
         {
             RefreshHighScoreUI();
-            _ui?.ToggleStandaloneHighScorePanel();
+            _ui?.DisplayStandaloneHighScorePanel();
         }
 
         // ── Game flow ─────────────────────────────────────────────────────────────

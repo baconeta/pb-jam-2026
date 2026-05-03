@@ -424,19 +424,19 @@ namespace UI
         {
             string text = BuildHighScoreText(scores);
             if (_highScoreText         != null) _highScoreText.text         = text;
-            if (_highScoreStandaloneText != null) _highScoreStandaloneText.text = text;
+            if (_highScoreStandaloneText != null) _highScoreStandaloneText.text = "hIGH SCORES";
         }
 
         /// <summary>
         /// Toggles the standalone high score panel (if assigned).
         /// BoardGameManager.ToggleHighScorePanel() calls this after refreshing the scores.
         /// </summary>
-        public void ToggleStandaloneHighScorePanel()
+        public void DisplayStandaloneHighScorePanel(bool visible=true)
         {
             if (_highScoreStandalonePanel == null) return;
-            bool next = !_highScoreStandalonePanel.activeSelf;
-            _highScoreStandalonePanel.SetActive(next);
-            Debug.Log($"[UIController] Standalone high score panel {(next ? "shown" : "hidden")}.");
+            _gameOverPanel.SetActive(visible);
+            _highScoreStandalonePanel.SetActive(visible);
+            Debug.Log($"[UIController] Standalone high score panel {(visible ? "shown" : "hidden")}.");
         }
 
         private static string BuildHighScoreText(List<HighScoreEntry> scores)
@@ -445,7 +445,6 @@ namespace UI
                 return "No scores yet!";
 
             System.Text.StringBuilder sb = new();
-            sb.AppendLine("── HIGH SCORES ──");
             for (int i = 0; i < scores.Count; i++)
                 sb.AppendLine($"{i + 1}.  {scores[i].playerName,-12}  {scores[i].score}");
             return sb.ToString();
