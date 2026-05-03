@@ -46,6 +46,9 @@ namespace Board
             ? _boardManager.GetTileAtIndex(_currentTileIndex)
             : null;
 
+        /// <summary>Zero-based position of the player in the sorted tile list. Used for look-ahead queries.</summary>
+        public int CurrentTileIndex => _currentTileIndex;
+
         // ── Public API ────────────────────────────────────────────────────────────
 
         /// <summary>

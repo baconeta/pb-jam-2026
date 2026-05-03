@@ -83,6 +83,13 @@ namespace UI
         [Tooltip("'Roll 2 Dice' button – wire its onClick to BoardGameManager.RollTwoDice().")]
         [SerializeField] private Button _rollTwoDiceButton;
 
+        [Header("Single-Die Risk Bonus")]
+        [Tooltip("Parent GameObject of the bonus label shown above the Roll 1 Die button. Assign any GameObject – shown/hidden by UpdateSingleDieBonusUI().")]
+        [SerializeField] private GameObject _singleDieBonusLabel;
+
+        [Tooltip("TMP_Text inside the bonus label. Will display 'Bonus +X'. Assign the text component.")]
+        [SerializeField] private TMP_Text _singleDieBonusText;
+
         [Header("Checkpoint Panel")]
         [Tooltip("Parent panel containing the Take / Skip buttons. Shown at checkpoint.")]
         [SerializeField] private GameObject _checkpointPanel;
@@ -233,6 +240,17 @@ namespace UI
 
         // ── Button state ──────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// Shows or hides the single-die risk bonus label above the Roll 1 Die button.
+        /// Called by BoardGameManager every time the game enters WaitingForRoll or any other state.
+        /// </summary>
+        public void UpdateSingleDieBonusUI(bool isActive, int bonusValue)
+        {
+            if (_singleDieBonusLabel != null) _singleDieBonusLabel.SetActive(isActive);
+            if (isActive && _singleDieBonusText != null)
+                _singleDieBonusText.text = $"Bonus +{bonusValue}";
+        }
+
         /// <summary>Enables or disables both roll buttons. Pass false while movement is happening.</summary>
         public void SetRollButtonsInteractable(bool interactable)
         {
@@ -282,6 +300,7 @@ namespace UI
             if (_diceResultPanel    != null) _diceResultPanel.SetActive(false);
             if (_rollOneDieButton  != null) _rollOneDieButton.gameObject.SetActive(false);
             if (_rollTwoDiceButton != null) _rollTwoDiceButton.gameObject.SetActive(false);
+            if (_singleDieBonusLabel != null) _singleDieBonusLabel.SetActive(false);
         }
 
         /// <summary>Restores dice result text and roll buttons. Clears stale roll text.</summary>

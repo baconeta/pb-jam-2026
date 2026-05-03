@@ -80,6 +80,13 @@ namespace Game
         [Tooltip("Seconds to wait after the camera finishes zooming out before showing the checkpoint panel.")]
         [SerializeField] private float _checkpointRevealDelay = 0.5f;
 
+        [Header("Single-Die Risk Bonus")]
+        [Tooltip("How many tiles ahead to scan for a Negative tile. Stops at the checkpoint. Default: 6.")]
+        [SerializeField] private int _singleDieRiskyLookahead = 6;
+
+        [Tooltip("Base bonus added to run score when rolling one die into a risky window. Multiplied by the current risk multiplier.")]
+        [SerializeField] private int _singleDieRiskBonus = 20;
+
 
         // ── Runtime state ─────────────────────────────────────────────────────────
 
@@ -222,6 +229,9 @@ namespace Game
 
         private IEnumerator RollAndMove(int diceCount)
         {
+            // Capture before SetState clears the bonus label.
+            bool wasRisky = diceCount == 1 && IsSingleDieRisky();
+
             SetState(GameState.Rolling);
             _audioController?.PlayDiceRoll();
 
@@ -249,6 +259,16 @@ namespace Game
 
             Debug.Log($"[BoardGameManager] Dice roll – {diceCount} die/dice, total: {total}, moving {total} step(s).");
             if (_ui != null) _ui.ShowDiceResult(total, individuals);
+
+            // ── Single-die risk bonus ──────────────────────────────────────────────
+            if (wasRisky)
+            {
+                int bonus = Mathf.RoundToInt(_singleDieRiskBonus * _scoreManager.CurrentMultiplier);
+                _scoreManager.AddRunScore(bonus);
+                Debug.Log($"[BoardGameManager] Single die risky bonus applied: {bonus}.");
+                RefreshHUD();
+                _ui?.AnimateScoreCollected();
+            }
 
             // Brief pause so the player can read the roll result.
             yield return new WaitForSeconds(_diceDisplayDuration);
@@ -411,9 +431,14 @@ namespace Game
         {
             Debug.Log($"[BoardGameManager] State: {CurrentState} → {newState}.");
             CurrentState = newState;
-            // Roll buttons are interactable only when waiting for player input.
             if (_ui != null)
+            {
                 _ui.SetRollButtonsInteractable(newState == GameState.WaitingForRoll);
+                if (newState == GameState.WaitingForRoll)
+                    RefreshSingleDieBonusUI();
+                else
+                    _ui.UpdateSingleDieBonusUI(false, 0);
+            }
         }
 
         private void RefreshHUD()
@@ -426,6 +451,39 @@ namespace Game
         private void RefreshHighScoreUI()
         {
             _ui?.UpdateHighScoreDisplay(HighScoreManager.GetTopScores());
+        }
+
+        private void RefreshSingleDieBonusUI()
+        {
+            if (_ui == null) return;
+            bool risky = IsSingleDieRisky();
+            int  bonus = Mathf.RoundToInt(_singleDieRiskBonus * _scoreManager.CurrentMultiplier);
+            Debug.Log($"[BoardGameManager] Single die risky: {risky}.");
+            _ui.UpdateSingleDieBonusUI(risky, bonus);
+        }
+
+        /// <summary>
+        /// Looks ahead up to <see cref="_singleDieRiskyLookahead"/> tiles from the player's
+        /// current position. Returns true if any tile in that window is Negative.
+        /// Stops before crossing the checkpoint so the look-ahead never wraps past it.
+        /// </summary>
+        private bool IsSingleDieRisky()
+        {
+            if (_boardManager == null || _player == null) return false;
+            int tileCount     = _boardManager.TileCount;
+            if (tileCount == 0) return false;
+            int startIdx      = _player.CurrentTileIndex;
+            int checkpointIdx = _boardManager.CheckpointIndex;
+
+            for (int i = 1; i <= _singleDieRiskyLookahead; i++)
+            {
+                int idx = (startIdx + i) % tileCount;
+                if (idx == checkpointIdx) break;
+                BoardTile tile = _boardManager.GetTileAtIndex(idx);
+                if (tile != null && tile.CurrentContent == Board.TileContent.Negative)
+                    return true;
+            }
+            return false;
         }
     }
 }
