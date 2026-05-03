@@ -1980,6 +1980,7 @@ MonoBehaviour:
   _multiplierText: {fileID: 1287325341}
   _multiplierRect: {fileID: 1287325340}
   _diceResultText: {fileID: 188063070}
+  _diceResultPanel: {fileID: 106051211}
   _rollOneDieButton: {fileID: 1928264222}
   _rollTwoDiceButton: {fileID: 249646050}
   _checkpointPanel: {fileID: 1095320067}

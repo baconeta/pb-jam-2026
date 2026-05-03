@@ -73,6 +73,9 @@ namespace UI
         [Tooltip("Shows the dice roll result (e.g. '5' or '3 + 4 = 7').")]
         [SerializeField] private TMP_Text _diceResultText;
 
+        [Tooltip("Panel that contains scoring and dice roll results")] [SerializeField]
+        private GameObject _diceResultPanel;
+
         [Header("Roll Buttons")]
         [Tooltip("'Roll 1 Die' button – wire its onClick to BoardGameManager.RollOneDie().")]
         [SerializeField] private Button _rollOneDieButton;
@@ -276,6 +279,7 @@ namespace UI
         public void HideDiceControls()
         {
             if (_diceResultText    != null) _diceResultText.gameObject.SetActive(false);
+            if (_diceResultPanel    != null) _diceResultPanel.SetActive(false);
             if (_rollOneDieButton  != null) _rollOneDieButton.gameObject.SetActive(false);
             if (_rollTwoDiceButton != null) _rollTwoDiceButton.gameObject.SetActive(false);
         }
@@ -287,6 +291,7 @@ namespace UI
             {
                 _diceResultText.text = string.Empty;
                 _diceResultText.gameObject.SetActive(true);
+                _diceResultPanel.SetActive(true);
             }
             if (_rollOneDieButton  != null) _rollOneDieButton.gameObject.SetActive(true);
             if (_rollTwoDiceButton != null) _rollTwoDiceButton.gameObject.SetActive(true);
