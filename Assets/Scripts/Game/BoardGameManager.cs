@@ -278,7 +278,6 @@ namespace Game
                       $"multiplier: {_scoreManager.CurrentMultiplier:F2}x.");
             SetState(GameState.CheckpointPreview);
             _ui?.HideDiceControls();
-            _audioController?.PlayCheckpointReached();
 
             // Reshuffle at current risk immediately so the zoomed-out board shows the
             // actual layout the player will be rolling into, informing their Take/Skip decision.
@@ -289,6 +288,7 @@ namespace Game
             if (_camera != null) yield return StartCoroutine(_camera.WaitForZoomComplete());
 
             yield return new WaitForSeconds(_checkpointRevealDelay);
+            _audioController?.PlayCheckpointReached();
 
             SetState(GameState.AtCheckpoint);
 

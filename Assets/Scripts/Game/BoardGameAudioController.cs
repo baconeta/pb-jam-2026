@@ -77,7 +77,7 @@ namespace Game
                 }
                 return;
             }
-
+            Debug.Log($"[BoardGameAudioController] Playing audio {soundName}");
             AudioWrapper.Instance.PlaySound(soundName);
         }
     }
