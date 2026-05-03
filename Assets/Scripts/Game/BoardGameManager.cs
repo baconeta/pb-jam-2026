@@ -36,13 +36,14 @@ namespace Game
 
         public enum GameState
         {
-            PreStartPreview,  // board visible, start panel shown; no dice input
+            PreStartPreview,          // board visible, start panel shown; no dice input
             WaitingForRoll,
             Rolling,
             Moving,
             ResolvingTile,
-            CheckpointPreview, // board reshuffled + zoomed out; decision UI not yet shown
+            CheckpointPreview,        // board reshuffled + zoomed out; decision UI not yet shown
             AtCheckpoint,
+            BoardPreviewAfterDecision, // post-decision: board visible, camera zoomed out, waiting for Continue
             GameOver
         }
 
@@ -79,6 +80,16 @@ namespace Game
 
         [Tooltip("Seconds to wait after the camera finishes zooming out before showing the checkpoint panel.")]
         [SerializeField] private float _checkpointRevealDelay = 0.5f;
+
+        [Header("Board Preview – Text")]
+        [Tooltip("Headline shown on the board preview panel after the player banks.")]
+        [SerializeField] private string _bankPreviewTitle       = "Fresh Board!";
+        [Tooltip("Body text shown after banking.")]
+        [SerializeField] private string _bankPreviewDescription = "Your score is safe. The board has calmed down.";
+        [Tooltip("Headline shown on the board preview panel after the player skips.")]
+        [SerializeField] private string _skipPreviewTitle       = "Risk Increased!";
+        [Tooltip("Body text shown after skipping.")]
+        [SerializeField] private string _skipPreviewDescription = "The board is more dangerous. Good luck.";
 
         [Header("Single-Die Risk Bonus")]
         [Tooltip("How many tiles ahead to scan for a Negative tile. Stops at the checkpoint. Default: 6.")]
@@ -165,6 +176,17 @@ namespace Game
             if (CurrentState != GameState.AtCheckpoint) return;
             _scoreManager.SkipCheckpoint();
             StartCoroutine(ResolveCheckpointDecisionRoutine(tookCheckpoint: false));
+        }
+
+        /// <summary>
+        /// Called by the Continue button on the post-decision board preview panel.
+        /// Hides the preview panel, zooms the camera back in, then resumes normal play.
+        /// No-op if not in the BoardPreviewAfterDecision state.
+        /// </summary>
+        public void ContinueAfterBoardPreview()
+        {
+            if (CurrentState != GameState.BoardPreviewAfterDecision) return;
+            StartCoroutine(ContinueAfterBoardPreviewRoutine());
         }
 
         /// <summary>Restarts the game from the beginning. Safe to call from any state.</summary>
@@ -337,13 +359,22 @@ namespace Game
             _ui?.HideCheckpointPanel();
             _audioController?.PlayPanelClose();
 
-            // Board is NOT reshuffled here. The shuffle happened before the decision so the
-            // player could make an informed choice. They now play on that same board.
+            string previewTitle;
+            string previewDescription;
+
             if (tookCheckpoint)
             {
                 Debug.Log($"[BoardGameManager] Checkpoint taken. Risk reset to 0. Banked: {_scoreManager.BankedScore}.");
                 _audioController?.PlayCheckpointBank();
                 _ui?.AnimateBankedScoreTransferred();
+
+                // Reshuffle at the now-reset risk so the player sees the calmer board
+                // before rolling. Camera stays zoomed out.
+                _boardManager.ShuffleContents(_scoreManager.RiskLevel);
+                _audioController?.PlayBoardShuffle();
+
+                previewTitle       = _bankPreviewTitle;
+                previewDescription = _bankPreviewDescription;
             }
             else
             {
@@ -354,11 +385,28 @@ namespace Game
                 _audioController?.PlayMultiplierPop();
                 _ui?.AnimateRiskChanged();
                 _ui?.AnimateMultiplierChanged();
+
+                // Board was already reshuffled at new risk during HandleCheckpointReached;
+                // no second shuffle needed. Player sees the current board before continuing.
+                previewTitle       = _skipPreviewTitle;
+                previewDescription = _skipPreviewDescription;
             }
 
+            // Refresh HUD so updated score/risk are visible behind the preview panel.
+            RefreshHUD();
+            _ui?.ShowBoardPreviewPanel(previewTitle, previewDescription);
+            _audioController?.PlayPanelOpen();
+            SetState(GameState.BoardPreviewAfterDecision);
+            // Flow paused here. ContinueAfterBoardPreview() resumes it.
+            yield break;
+        }
+
+        private IEnumerator ContinueAfterBoardPreviewRoutine()
+        {
+            _ui?.HideBoardPreviewPanel();
+            _audioController?.PlayPanelClose();
             if (_camera != null) _camera.SetFollowMode();
             if (_camera != null) yield return StartCoroutine(_camera.WaitForZoomComplete());
-
             _ui?.ShowDiceControls();
             RefreshHUD();
             SetState(GameState.WaitingForRoll);

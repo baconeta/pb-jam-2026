@@ -118,6 +118,23 @@ namespace UI
         [Tooltip("The 'Skip' button on the checkpoint panel.")]
         [SerializeField] private Button _skipButton;
 
+        [Header("Board Preview Panel")]
+        [Tooltip("Panel shown after a checkpoint decision while the board is still zoomed out. " +
+                 "Wire the Continue button inside this panel to BoardGameManager.ContinueAfterBoardPreview().")]
+        [SerializeField] private GameObject _boardPreviewPanel;
+
+        [Tooltip("CanvasGroup on the board preview panel (optional, for animations).")]
+        [SerializeField] private CanvasGroup _boardPreviewPanelGroup;
+
+        [Tooltip("RectTransform of the board preview panel (optional, for slap-in animation).")]
+        [SerializeField] private RectTransform _boardPreviewPanelRect;
+
+        [Tooltip("Title text on the board preview panel (e.g. 'Fresh Board!').")]
+        [SerializeField] private TMP_Text _boardPreviewTitleText;
+
+        [Tooltip("Description text on the board preview panel.")]
+        [SerializeField] private TMP_Text _boardPreviewDescriptionText;
+
         [Header("Game Over Panel")]
         [Tooltip("Panel shown when the player hits a Negative tile.")]
         [SerializeField] private GameObject _gameOverPanel;
@@ -146,6 +163,7 @@ namespace UI
             // Start with panels hidden; the GameManager controls their visibility.
             if (_startPanel != null) _startPanel.SetActive(false);
             HideCheckpointPanel();
+            HideBoardPreviewPanel();
             SetGameOverPanelVisible(false);
             if (_highScoreStandalonePanel != null) _highScoreStandalonePanel.SetActive(false);
         }
@@ -378,6 +396,31 @@ namespace UI
         {
             if (_checkpointPanel == null) return;
             _checkpointPanel.SetActive(false);
+        }
+
+        // ── Board preview panel ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Shows the post-decision board preview panel with the given title and description.
+        /// The Continue button inside the panel should be wired to
+        /// BoardGameManager.ContinueAfterBoardPreview().
+        /// </summary>
+        public void ShowBoardPreviewPanel(string title, string description)
+        {
+            if (_boardPreviewPanel == null) return;
+            _boardPreviewPanel.SetActive(true);
+            if (_boardPreviewTitleText       != null) _boardPreviewTitleText.text       = title;
+            if (_boardPreviewDescriptionText != null) _boardPreviewDescriptionText.text = description;
+
+            if (_juice != null && _boardPreviewPanelRect != null)
+                _juice.SlapIn(_boardPreviewPanelRect, _boardPreviewPanelGroup);
+            else if (_boardPreviewPanelGroup != null)
+                _boardPreviewPanelGroup.alpha = 1f;
+        }
+
+        public void HideBoardPreviewPanel()
+        {
+            if (_boardPreviewPanel != null) _boardPreviewPanel.SetActive(false);
         }
 
         // ── Game over panel ───────────────────────────────────────────────────────
