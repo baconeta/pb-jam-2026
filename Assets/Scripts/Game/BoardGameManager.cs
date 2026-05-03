@@ -189,6 +189,7 @@ namespace Game
             _audioController?.PlayHighScoreSaved();
             RefreshHighScoreUI();
             ToggleHighScorePanel();
+            _ui.SetGameOverPanelVisible(false);
         }
 
         /// <summary>
@@ -221,6 +222,7 @@ namespace Game
                 _ui.HideHud();
                 _ui.HideCheckpointPanel();
                 _ui.SetGameOverPanelVisible(false);
+                _ui.DisplayStandaloneHighScorePanel(false);
                 _ui.ShowStartPanel();
                 _ui.UpdateDiceResult(string.Empty);
                 RefreshHighScoreUI();

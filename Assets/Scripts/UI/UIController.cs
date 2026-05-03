@@ -434,7 +434,7 @@ namespace UI
         public void DisplayStandaloneHighScorePanel(bool visible=true)
         {
             if (_highScoreStandalonePanel == null) return;
-            _gameOverPanel.SetActive(visible);
+            _gameOverPanel.SetActive(false);
             _highScoreStandalonePanel.SetActive(visible);
             Debug.Log($"[UIController] Standalone high score panel {(visible ? "shown" : "hidden")}.");
         }
