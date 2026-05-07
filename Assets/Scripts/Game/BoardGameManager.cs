@@ -112,6 +112,19 @@ namespace Game
         {
             InitGame();
         }
+        
+        public void Quit()
+        {
+            // Quits the application
+            Application.Quit();
+
+            // Optional: Close play mode while testing in the Editor
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#endif
+
+            Debug.Log("Game is exiting...");
+        }
 
         // ── Public API – wire these to UI buttons ─────────────────────────────────
 
